@@ -1,37 +1,39 @@
 import asyncio
+import logging
+import os
+from aiogram import Bot, Dispatcher
+from config import BOT_TOKEN
+from database import init_db
+from handlers import start, tasks, admin
 
-from aiogram import Dispatcher
+async def main():
+    # Настройка логирования
+    logging.basicConfig(level=logging.INFO)
+    
+    # Создаем папки
+    os.makedirs("data", exist_ok=True)
+    os.makedirs("images", exist_ok=True)
+    
+    # Инициализация БД
+    await init_db()
 
-from app.bot import bot
-from app.database.migrations import create_database
-from app.handlers.user import router as user_router
-# Если ваш код роутера лежит в app/handlers/admin/handlers.py
-from app.handlers.admin.admin import router as admin_router
-from app.utils.logger import log
-
-
-async def start():
-
-    # Создаем таблицы
-    await create_database()
-
-    # Создаем диспетчер
+    # Инициализация бота БЕЗ сложных кастомных сессий
+    # Если интернет "глючит", попробуйте этот метод
+    bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
 
-    # Подключаем роутеры
-    dp.include_router(user_router)
-    dp.include_router(admin_router)
+    # Подключение роутеров
+    dp.include_router(start.router)
+    dp.include_router(tasks.router)
+    dp.include_router(admin.router)
 
-    log.info("===================================")
-    log.info("Бот успешно запущен!")
-    log.info("===================================")
-
+    logging.info("Бот запущен. Ожидание обновлений...")
+    
+    # Запуск поллинга
     await dp.start_polling(bot)
 
-
-def main():
-    asyncio.run(start())
-
-
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logging.error(f"Критическая ошибка: {e}")
